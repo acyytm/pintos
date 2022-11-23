@@ -201,17 +201,26 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
   /*======================================*/
   enum intr_level old_level;
-  if (thread_current()->priority > lock->max_priority_acquire_lock){
-    lock->max_priority_acquire_lock = thread_current()->priority;
+  /*======================================*/
+  thread_current()->lock_require = lock;
+  /*=======================================*/
+  struct thread* p = thread_current();
+  while(p->lock_require != NULL && p->lock_require->holder && p != p->lock_require->holder){
+    if(thread_current()->priority > p->lock_require->max_priority_acquire_lock)
+      p->lock_require->max_priority_acquire_lock = thread_current()->priority;
+    p = p->lock_require->holder;
   }
   old_level = intr_disable();
-  if(thread_current()!= lock->holder && lock->holder){
-    thread_donate(lock->holder, thread_current()->priority);
+  p = thread_current();
+  while(p->lock_require != NULL && p->lock_require->holder && p != p->lock_require->holder){
+    thread_donate(p->lock_require->holder, thread_current()->priority);
+    p = p->lock_require->holder;
   }
   intr_set_level(old_level);
   /*======================================*/
   sema_down (&lock->semaphore);
   add_lock(thread_current(), lock);
+  
   lock->holder = thread_current ();
 }
 
@@ -273,6 +282,7 @@ lock_release (struct lock *lock)
     new_priority = t->max_priority_acquire_lock;
   }
   sema_up (&lock->semaphore);
+  thread_current()->lock_require = NULL;
   thread_set(new_priority);
 }
 

@@ -99,6 +99,7 @@ struct thread
 #endif
 
     struct list lock_list;              /**< record lock holded by the thread*/
+    struct lock* lock_require;          /**< lock that thread wants to acquire*/
     int64_t sleep_time;             /**< the number of timer ticks that thread will sleep>*/
     int old_priority;
     /* Owned by thread.c. */
